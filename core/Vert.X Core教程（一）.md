@@ -449,3 +449,24 @@ public class VerticleDeployTest extends AbstractVerticle {
 
 
 ③：`deployVerticle`方法参数中设置`DeploymentOptions`。
+
+
+
+运行结果如下：
+
+![image-20230216180327856](https://programtalk-1256529903.cos.ap-beijing.myqcloud.com/202302161803956.png)
+
+
+
+其实实例数目限制的地方挺多，这里我就不一一展开。分章节去记录各种可能踩到的坑或者我已经踩到的坑!
+
+比如将上面的代码③出修改下，将`VerticleDeployTest.class`修改为`new VerticleDeployTest()`则会报如下错误
+
+![image-20230216180443198](https://programtalk-1256529903.cos.ap-beijing.myqcloud.com/202302161804265.png)
+
+这是因为通过`new`已经将实例创建出来了，所以不能指定超过1的实例数，②处只能设置为1。
+
+
+
+### 命令行方式
+
