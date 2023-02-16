@@ -38,5 +38,5 @@ Vert.x提供了很多的模块共使用者自由选择，比如Core、Web、集�
 
 # Core模块
 Vert.x 核心 API 包含用于编写 Vert.x 应用程序的核心和对 HTTP、TCP、UDP、文件系统的低级别支持， 异步流和许多其他构建基块。它也用于 Vert.x 的许多其他组件。
-详细使用情况可以查看具体的教程问题
+下方是Core模块的使用教程
 * [Vert.X Core教程（一）.md](core/Vert.X%20Core教程（一）.md)
