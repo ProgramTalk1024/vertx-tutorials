@@ -277,10 +277,175 @@ public class VerticleClass1 extends AbstractVerticle {
 
 通常重写`start`方法和`stop`方法即可，那么start方法有什么用呢？比如要启动一个http服务器。
 
+```java
+package cn.programtalk.vertx.core;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Vertx;
+import io.vertx.core.http.HttpServerResponse;
+
+public class VerticleTest1 extends AbstractVerticle {
+    @Override
+    public void start() throws Exception {
+        super.start();
+        vertx.createHttpServer()
+                .requestHandler(req -> {
+                    HttpServerResponse response = req.response();
+                    response.putHeader("Content-type", "text/html; charset=utf-8");
+                    response.end("如果浏览器展示了我，那么说明Http Server创建成功了!");
+                })
+                .listen(8080, result -> {
+                    if (!result.succeeded()) {
+                        System.out.println("启动失败");
+                    }
+                });
+    }
+
+    public static void main(String[] args) throws Exception {
+        Vertx vertx = Vertx.vertx();
+        VerticleTest1 verticle = new VerticleTest1();
+        vertx.deployVerticle(verticle); //①
+        verticle.start();
+    }
+}
 ```
 
+①：这里使用到了`deployVerticle`方法，有什么用呢？其实它设置了Verticle的上下文（Contenxt），后面讲解。
+
+
+
+启动程序后，访问浏览器，效果图如下：
+
+![Verticle服务器](https://programtalk-1256529903.cos.ap-beijing.myqcloud.com/202302161730002.png)
+
+
+
+## 异步停止和启动
+
+上面的例子中，重写了`start()`方法，这个方法是同步的，Vertx同样提供了异步的方法。
+
+```java
+public void start(Promise<Void> startPromise)
+public void stop(Promise<Void> stopPromise)
+```
+
+这里我就不做演示了。
+
+
+
+## Verticle类型
+
+有种类型，标准类型和工作线程类型。
+
+
+
+标准类型：是最常见和最有用的类型 - 它们始终使用事件循环线程执行。
+
+工作线程池类型：他们通过工作线程池（Worker Pool）中的一个线程来运行，一个Verticle永远不会被多个线程并发执行，主要用于调用阻塞代码。如果不想使用工作线程池来运行阻塞代码，也可以使用使用事件轮询中的`vertx.executeBlocking`来运行。
+
+
+
+## 发布Verticle
+
+Vert.x提供了两种方式来发布Verticle，一种是编程的方式，一种是命令行的方式。
+
+### 编程方式
+
+#### 发布
+
+上面其实已经使用过`deployVerticle`方法，他就是多种多态方法中的一个，通过该方法就能够发布Verticle。
+
+
+
+类似如下代码：
+
+```java
+package cn.programtalk.vertx.core;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Vertx;
+
+public class VerticleDeployTest extends AbstractVerticle {
+    @Override
+    public void start() throws Exception {
+        super.start();
+        System.out.println("start执行");
+    }
+
+    public static void main(String[] args) {
+        Vertx vertx = Vertx.vertx();
+        vertx.deployVerticle(new VerticleDeployTest()).onComplete(result -> {
+            if (result.succeeded()) {
+                System.out.println("发布完成, 发布ID=" + result.result()); // 发布完成, 发布ID=831a66f3-1e79-4de4-a886-f84647c53839
+            } else {
+                System.out.println("发布失败");
+            }
+        });
+
+    }
+}
+```
+
+`deployVerticle`是一个Future，可以监听到结果，在onComplete中如果succeeded=true的时候，就会返回发布ID。
+
+
+
+#### 取消发布
+
+取消发布使用`undeploy`方法，需要传入发布ID，类似如下代码：
+
+```java
+vertx.undeploy(deploymentID, res -> {
+  if (res.succeeded()) {
+    System.out.println("Undeployed ok");
+  } else {
+    System.out.println("Undeploy failed!");
+  }
+});
 ```
 
 
-应用程序通常由在同一 Vert.x 实例中运行的许多Verticle实例组成。不同的Verticle实例可以使用事件总线（Event Bus）发送消息来相互通信。
 
+#### 指定实例数
+
+在发布的时候可以指定实例数，来告诉vertx，创建几个实例。
+
+```java
+package cn.programtalk.vertx.core;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.DeploymentOptions;
+import io.vertx.core.Vertx;
+
+public class VerticleDeployTest extends AbstractVerticle {
+    @Override
+    public void start() throws Exception {
+        super.start();
+        System.out.println("start执行");
+    }
+
+    public static void main(String[] args) {
+        Vertx vertx = Vertx.vertx();
+        DeploymentOptions options = new DeploymentOptions(); // ①
+        options.setInstances(3); // ②
+        vertx.deployVerticle(VerticleDeployTest.class, options).onComplete(result -> {// ③
+            if (result.succeeded()) {
+                System.out.println("发布完成, 发布ID=" + result.result()); // 发布完成, 发布ID=831a66f3-1e79-4de4-a886-f84647c53839
+            } else {
+                System.out.println("发布失败");
+            }
+        });
+
+    }
+}
+```
+
+①：定义了DeploymentOptions类型的发布参数。
+
+
+
+②：通过`setInstances`方法设置实例数。
+
+
+
+③：`deployVerticle`方法参数中设置`DeploymentOptions`。
