@@ -169,7 +169,9 @@ public class FutureCompositeTest {
 ```
 
 ① 创建一个文件（a.txt）。
+
 ②  当 ① 执行完毕后（a.txt文件创建完成后）,执行 ②。
+
 ③  当 2 执行完毕后（a.txt文件创建完成后）,执行 ③。
 
 
@@ -215,6 +217,10 @@ public class FutureCoordinationTest {
 
 
 ① 创建第一个``Future``
+
 ② 创建第二个``Future``
+
 ③ 使用``CompositeFuture.all``协调两个``Future``，根据不同的情况编写不同的业务逻辑。
+
+
 
