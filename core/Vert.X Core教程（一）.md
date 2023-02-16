@@ -220,7 +220,7 @@ public class FutureCoordinationTest {
 
 ② 创建第二个``Future``
 
-③ 使用``CompositeFuture.all``协调两个``Future``，根据不同的情况编写不同的业务逻辑。
+③ 使用``CompositeFuture.all``协调两个``Future``，都成功的时候才会执行③的代码。
 
 
 
