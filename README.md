@@ -27,7 +27,7 @@ Eclipse Vert.x™ 是什么？
 # Eclipse Vert.x™模块
 Vert.x提供了很多的模块共使用者自由选择，比如Core、Web、集群等模块。
 ![](https://programtalk-1256529903.cos.ap-beijing.myqcloud.com/202302161317556.png)
-加下来我就会根据上面官网文档所示图中的内容意义学习并记录。
+加下来我就会根据上面官网文档所示图中的内容逐步学习并记录。
 
 # 教程说明
 本文章中`Vert.x`所使用的版本是V4.3.8，此版本要求JDK8+，包管理工具我使用Maven3+。
