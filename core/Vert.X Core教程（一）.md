@@ -224,3 +224,63 @@ public class FutureCoordinationTest {
 
 
 
+# Verticles
+
+Vert.x 内部提供了一个一个简单、可扩展、类似Actor模型（不懂的可以看看[这篇文章]([Actor模型 (qq.com)](https://mp.weixin.qq.com/s?__biz=MzI1Njk3MTAwNg==&mid=2247491229&idx=1&sn=ee00510c4e4e6fac36daedcad15bb015&chksm=ea1fc70cdd684e1a9c9ef12c88c47323b6526496271536a4272ee447e89f135143eb03e006c2&scene=27))）的部署、并发模型，开箱即用，使用它可以少写很多代码。
+
+
+
+你可以将其理解为Java中的线程，一个 Vert.x 实例维护 N 个**事件循环线程(`event loop threads`) **（其中 N 默认为核心*2）。`Verticle`可以用 Vert.x 支持的任何语言编写, 单个应用程序可以包含用多种语言编写的`Verticle`。
+
+
+
+既然说到Verticle是一个类似线程的东西，那么多线程所带来的通信问题，Verticle依然存在，在Vert.X中Verticle使用事件总线进行通信（Event Bus）。
+
+这里有引出来几个新的概念
+
+* 事件总线，这里不做过多解释，你可以将他理解为一个`Pub/Sub`的消息中间件即可。
+* 事件循环线程(`event loop threads`) ：事件循环主要针对异步来说的，通常异步任务而言的。同步任务都在主线程上执行，形成一个函数调用栈（执行栈），而异步则先放到**任务队列**（**task queue**）里，后面会有专门的线程池从任务队列中获取任务进行执行，下图很好的展示了事件循环的工作情况。
+
+![循环线程](https://programtalk-1256529903.cos.ap-beijing.myqcloud.com/202302161114272.png)
+
+
+
+## 创建Verticle
+
+使用该模型必须实现``Verticle``接口或者继承``AbstractVerticle``抽象类，通常使用继承``AbstractVerticle``抽象类的方式，我们看下`Verticle`和`AbstractVerticle`的类图：
+
+![](https://programtalk-1256529903.cos.ap-beijing.myqcloud.com/202302161550029.png)
+
+`Verticle`中内置了一个`Vertx`的实例`Vertx vertx`和一个`Verticle`上下文实例`Context contenxt`。
+
+
+
+代码示例如下：
+
+```java
+package cn.programtalk.vertx.core;
+
+import io.vertx.core.AbstractVerticle;
+
+public class VerticleClass1 extends AbstractVerticle {
+    @Override
+    public void start() throws Exception {
+        super.start();
+    }
+
+    @Override
+    public void stop() throws Exception {
+        super.stop();
+    }
+}
+```
+
+通常重写`start`方法和`stop`方法即可，那么start方法有什么用呢？比如要启动一个http服务器。
+
+```
+
+```
+
+
+应用程序通常由在同一 Vert.x 实例中运行的许多Verticle实例组成。不同的Verticle实例可以使用事件总线（Event Bus）发送消息来相互通信。
+
