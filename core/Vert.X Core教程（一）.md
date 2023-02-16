@@ -1,4 +1,4 @@
-# Vert.X Core教程（一）
+# Vert.x Core教程（一）
 `Vert.X Core`是Vert.x工具的核心，它是一系列`Java APIs`的集合，它提供了很多的功能
 * 编写TCP客户端和服务器。
 * 编写HTTP客户端和服务器，支持WebSockets。
@@ -14,6 +14,24 @@
 * 集群
 
 上面出现了一些比较新的问题，或者存在不明白的地方？很正常，接下来逐步讲解。
+
+
+
+# 准备
+
+接下来的讲解要使用代码辅助，所以要建立项目，我这里建立的是一个Maven项目，如何创建项目本问不做讲解。
+
+项目需要引入`vertx-core`依赖。
+
+```xml
+<dependency>
+ <groupId>io.vertx</groupId>
+ <artifactId>vertx-core</artifactId>
+ <version>4.3.8</version>
+</dependency>
+```
+
+
 
 # 核心接口类Vertx
 Vert.x提供了一个接口`Vertx`，他是Vert.x的核心入口点，是Vert.x的控制中心，那么一个应用创建一个或者多个`Vertx`的实例是非常有必要的，那么如何创建呢？`VertX`提供了静态方法。
