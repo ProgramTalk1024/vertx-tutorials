@@ -470,3 +470,68 @@ public class VerticleDeployTest extends AbstractVerticle {
 
 ### 命令行方式
 
+
+
+## Content对象
+
+当 Vert.x 传递一个事件给处理器或者调用 `Verticle` 的 start 或 stop 方法时， 它会关联一个 `Context` 对象来执行。通常来说这个context会是一个 **event-loop context**，它绑定到了一个特定的 Event Loop 线程上。所以在该context上执行的操作总是 在同一个 Event Loop 线程中。对于运行内联的阻塞代码的 Worker Verticle 来说，会关联一个 Worker Context，并且所有的操作运都会运行在 Worker 线程池的线程上。（译者注：每个 `Verticle` 在部署的时候都会被分配一个 `Context`（根据配置不同，可以是Event Loop Context 或者 Worker Context），之后此 `Verticle` 上所有的普通代码都会在此 `Context` 上执行（即对应的 Event Loop 或Worker 线程）。一个 `Context` 对应一个 Event Loop 线程（或 Worker 线程），但一个 Event Loop 可能对应多个 `Context`。）
+
+
+
+# 事件总线
+
+事件总线（Event Bus），是Vertx的神经系统，每一个 Vert.x 实例都有一个单独的 Event Bus 实例。
+
+Event Bus构建了一个跨越多个服务器节点和多个浏览器的分布式点对点消息系统。
+
+Event Bus支持发布/订阅、点对点、请求-响应的消息传递方式。
+
+Event Bus的API很简单。基本上只涉及注册处理器、 注销处理器以及发送和发布(publish)消息。
+
+## 获取事件总线
+
+通过Vertx的eventBus方法获取
+
+```java
+package cn.programtalk.vertx.core;
+
+import io.vertx.core.Vertx;
+import io.vertx.core.eventbus.EventBus;
+
+public class EventBusGetTest {
+    public static void main(String[] args) {
+        Vertx vertx = Vertx.vertx();
+        // 通过 vertx.eventBus()获取事件总线
+        EventBus eventBus = vertx.eventBus();
+    }
+}
+```
+
+## 点对点消息
+
+```java
+package cn.programtalk.vertx.core;
+
+import io.vertx.core.Vertx;
+import io.vertx.core.eventbus.EventBus;
+
+public class EventBusTest1 {
+    public static void main(String[] args) {
+        Vertx vertx = Vertx.vertx();
+        EventBus eventBus = vertx.eventBus();
+        eventBus.consumer("address1", event -> {
+            System.out.println("接收者收到信息：" + event.body());
+            event.reply("Fine thank you and you?");
+        });
+        eventBus.request("address1", "How are you?", ar -> {
+            if (ar.succeeded()) {
+                System.out.println("发送者收到回复新：" + ar.result().body());
+            }
+        });
+    }
+}
+```
+
+运行结果：
+
+![image-20230216203100443](https://programtalk-1256529903.cos.ap-beijing.myqcloud.com/202302162031541.png)
