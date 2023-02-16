@@ -172,7 +172,7 @@ public class FutureCompositeTest {
 
 ②  当 ① 执行完毕后（a.txt文件创建完成后）,执行 ②。
 
-③  当 2 执行完毕后（a.txt文件创建完成后）,执行 ③。
+③  当 2 执行完毕后（a.txt文件写入内容）,执行 ③。
 
 
 
