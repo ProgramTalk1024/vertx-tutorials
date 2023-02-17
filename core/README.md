@@ -507,7 +507,44 @@ public class EventBusGetTest {
 }
 ```
 
+## 发布订阅模式 
+
+发布订阅模式中，使用`publish`方法发布消息，使用`consumer`方法订阅消费消息，当然也可以使用`localConsumber`，他只适用于应用中，不能在集群中传递消息。
+
+```
+package cn.programtalk.vertx.core;
+
+import io.vertx.core.Vertx;
+import io.vertx.core.eventbus.EventBus;
+
+public class EventBusPubSubTest1 {
+    public static void main(String[] args) {
+        Vertx vertx = Vertx.vertx();
+        EventBus eventBus = vertx.eventBus();
+        eventBus.consumer("address1", event -> { // ①
+            System.out.println("接收者收到信息1：" + event.body());
+            event.reply("Fine thank you and you?");
+        });
+        eventBus.consumer("address1", event -> { //②
+            System.out.println("接收者收到信息2：" + event.body());
+            event.reply("Fine thank you and you?");
+        });
+        eventBus.publish("address1", "How are you?"); //③
+    }
+}
+```
+
+运行结果：
+
+![image-20230217093423234](https://programtalk-1256529903.cos.ap-beijing.myqcloud.com/202302170934385.png)
+
+
+
 ## 点对点消息
+
+点对点消息就是说消息只能被一个接收者收到，这种模式下又分为有应答和没有应答的情况。应答使用`reply`方法，应答之后，发送这也会收到应答信息。
+
+下面这个例子就是又应答的示例代码：
 
 ```java
 package cn.programtalk.vertx.core;
@@ -535,3 +572,165 @@ public class EventBusTest1 {
 运行结果：
 
 ![image-20230216203100443](https://programtalk-1256529903.cos.ap-beijing.myqcloud.com/202302162031541.png)
+
+
+
+无应答的情况，去掉`reply`相关代码即可。
+
+## 发送配置
+
+发送消息的时候，支持通过`DeliveryOptions`，比如对于有应答的情况，可以设置超时事件，如果超时，则会返回失败。
+
+```java
+package cn.programtalk.vertx.core;
+
+import io.vertx.core.Vertx;
+import io.vertx.core.eventbus.DeliveryOptions;
+import io.vertx.core.eventbus.EventBus;
+
+public class EventBusDeliveryOptionsTest1 {
+    public static void main(String[] args) {
+        Vertx vertx = Vertx.vertx();
+        EventBus eventBus = vertx.eventBus();
+        DeliveryOptions options = new DeliveryOptions();
+        options.setSendTimeout(10); //①
+        eventBus.consumer("address1", event -> {
+            // 注释掉，不应答
+            //event.reply("应答"); // ②
+        });
+        eventBus.request("address1", "How are you?", options, event -> {
+            if (event.succeeded()) {
+                System.out.println("有应答");
+            } else {
+                System.out.println("失败"); // ③
+            }
+        });//③
+    }
+}
+```
+
+①：定义10秒超时
+
+
+
+②：一直没有应答
+
+
+
+③：10秒后打印失败。
+
+
+
+## 集群情况
+
+上面的示例都是在一个Vertx示实例下，如果我有两个进程，一个发送消息，一个消费消息呢？Vertx也是支持的，接下来模拟下。
+
+
+
+首先创建两个类，一个`ClusteredProducer1`，一个`ClusteredConsumer1`，在这两个类中Vertx实例要使用`clusteredVertx`来创建。
+
+
+
+代码分别如下：
+
+
+
+**ClusteredProducer1**：
+
+```java
+package cn.programtalk.vertx.core;
+
+import io.vertx.core.Vertx;
+import io.vertx.core.VertxOptions;
+import io.vertx.core.eventbus.EventBus;
+
+public class ClusteredProducer1 {
+    public static void main(String[] args) {
+        VertxOptions options = new VertxOptions();
+        Vertx.clusteredVertx(options, res -> {
+            if (res.succeeded()) {
+                Vertx vertx = res.result();
+                EventBus eventBus = vertx.eventBus();
+                String body = "body";
+                System.out.println("生产者发送消息：" + body);
+                eventBus.send("address1", body);
+            } else {
+                System.out.println("Failed: " + res.cause());
+            }
+        });
+    }
+}
+```
+
+
+
+**ClusteredConsumer1**:
+
+```java
+package cn.programtalk.vertx.core;
+
+import io.vertx.core.Vertx;
+import io.vertx.core.VertxOptions;
+import io.vertx.core.eventbus.EventBus;
+
+public class ClusteredConsumer1 {
+    public static void main(String[] args) {
+        VertxOptions options = new VertxOptions();
+        Vertx.clusteredVertx(options, res -> {
+            if (res.succeeded()) {
+                Vertx vertx = res.result();
+                EventBus eventBus = vertx.eventBus();
+                eventBus.consumer("address1", event -> {
+                    System.out.println("消费者收到消息：" + event.body());
+                });
+            } else {
+                System.out.println("Failed: " + res.cause());
+            }
+        });
+    }
+}
+```
+
+
+
+运行测试，先启动消费者，再启动生产者，会出现如下错误：
+
+![image-20230217100119461](https://programtalk-1256529903.cos.ap-beijing.myqcloud.com/202302171001541.png)
+
+
+
+这是为什么呢？单个Vertx实例下为什么没有这个问题呢？其实仔细想想就能明白原因，既然是发送消息，那么起码发送消息的端信息得知道吧，比如上面的`address`参数。
+
+
+
+在单一Vertx实例下，是存储在内存中的，那么集群就得有一个共享存储。在Vertx.x中就叫做`ClusterManager`，并且提供了几个集群管理器，比如`Hazelcast Clustering`,`Apache Zookeeper Clustering`等，比如我这里使用前者。
+
+
+
+需要引入依赖：
+
+```xml
+<dependency>
+    <groupId>io.vertx</groupId>
+    <artifactId>vertx-hazelcast</artifactId>
+</dependency>
+```
+
+再次运行则会正常工作：
+
+
+
+生产者：
+
+![生产者](https://programtalk-1256529903.cos.ap-beijing.myqcloud.com/202302171013131.png)
+
+
+
+消费者：
+
+![消费者](https://programtalk-1256529903.cos.ap-beijing.myqcloud.com/202302171013933.png)
+
+
+
+这些集群管理器会在以后单独讲解。
+
