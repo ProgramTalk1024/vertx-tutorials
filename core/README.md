@@ -986,4 +986,523 @@ System.out.println(slice); // � 按照字节截取，所以乱码了
 
 # 编写 TCP 服务端和客户端
 
-Vertx实例对象提供了`createNetServer()`方法，可用其创建TCP服务，同时可以使用`NetServerOptions`来设置配置信息，`createNetServer()`方法会返回
+## 服务端
+
+Vertx实例对象提供了`createNetServer()`方法，可用其创建TCP服务，同时可以使用`NetServerOptions`来设置配置信息，`createNetServer()`方法会返回`NetServer `类型的实例，通过调用该实例的`listen`方法即可创建一个TCP服务端。
+
+```java
+package cn.programtalk.vertx.core;
+
+import io.vertx.core.Vertx;
+import io.vertx.core.net.NetClient;
+import io.vertx.core.net.NetClientOptions;
+import io.vertx.core.net.NetServer;
+import io.vertx.core.net.NetServerOptions;
+
+public class TCPServerTest {
+    public static void main(String[] args) {
+        // 创建Vertx实例
+        Vertx vertx = Vertx.vertx();
+        //配置 TCP 服务端
+        NetServerOptions options = new NetServerOptions();
+        options.setHost("localhost");
+        NetServer netServer = vertx.createNetServer(options);
+        // 接收传入连接的通知
+        netServer.connectHandler(event -> System.out.println("有请求" ));
+        // 启动服务端监听，listen有多种方法，不一一说明。
+        // 默认端口号是 0， 这也是一个特殊值，它告诉服务器随机选择并监听一个本地没有被占用的端口。
+        netServer.listen(0, res -> { // 可以设置一个监听器区监听端口绑定情况（非必须，但建议这么做）
+            if (res.succeeded()) {
+                System.out.println("端口是：" + netServer.actualPort()); // 当端口设置0的时候此处可以处真正监听的端口
+                System.out.println("启动成功"); // 启动成功
+            } else {
+                System.out.println("启动失败!");
+            }
+        });
+    }
+}
+```
+
+运行效果如下：
+
+![服务端](https://programtalk-1256529903.cos.ap-beijing.myqcloud.com/202302171438059.png)
+
+
+
+## 客户端
+
+客户端与服务端基本一致，只是类名不同。
+
+```java
+package cn.programtalk.vertx.core;
+
+import io.vertx.core.Vertx;
+import io.vertx.core.net.NetClient;
+import io.vertx.core.net.NetClientOptions;
+import io.vertx.core.net.NetSocket;
+
+public class TCPClientTest {
+    public static void main(String[] args) {
+        Vertx vertx = Vertx.vertx();
+        NetClientOptions options = new NetClientOptions().setConnectTimeout(10000);
+        NetClient client = vertx.createNetClient(options);
+        client.connect(56893, "localhost", res -> {
+            if (res.succeeded()) {
+                System.out.println("Connected!");
+                NetSocket socket = res.result();
+                System.out.println(socket.localAddress());
+            } else {
+                System.out.println("Failed to connect: " + res.cause().getMessage());
+            }
+        });
+
+    }
+}
+```
+
+这上面的`56893`是TCPServer的端口，控制台输出如下：
+
+![客户端](https://programtalk-1256529903.cos.ap-beijing.myqcloud.com/202302171446788.png)
+
+
+
+## 总结
+
+TCP服务器中内容很多，API也很多，比如客户端服务器端设置的参数也很多，或者SSL等等，这里并未一一讲解，仅作为入门简介。以后用到的时候慢慢积累吧，一口吃不成一个胖子。
+
+
+
+# 编写 HTTP服务端和客户端
+
+## 服务端
+
+他的API设计跟TCP的基本相同，不做详细解释，直接上代码
+
+```java
+package cn.programtalk.vertx.core;
+
+import io.vertx.core.Vertx;
+import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.HttpServer;
+import io.vertx.core.http.HttpServerOptions;
+import io.vertx.core.http.HttpServerResponse;
+
+public class HTTPServerTest {
+    public static void main(String[] args) {
+        Vertx vertx = Vertx.vertx();
+        HttpServerOptions options = new HttpServerOptions();
+        // 网络活动日志
+        options.setLogActivity(true);
+        HttpServer httpServer = vertx.createHttpServer();
+        httpServer.requestHandler(request -> {
+            String path = request.path();
+            HttpMethod method = request.method();
+            System.out.println("请求path=" + path + "，请求Method=" + method);
+            HttpServerResponse response = request.response();
+            if (path.equals("/users/1")) {
+                response.end("user1");
+            } else if (path.equals("/users/2")) {
+                response.end("user2");
+            } else {
+                response.end("unknown");
+            }
+        });
+        httpServer.listen(8080);
+    }
+}
+```
+
+代码中定义了两个path，`/users/1`和`/users/2`，端口是`8080`，接下来分别使用`httpie`请求下看看效果。
+
+```http
+http http://localhost:8080/users/1
+HTTP/1.1 200 OK
+content-length: 5
+
+user1
+
+
+http http://localhost:8080/users/2
+HTTP/1.1 200 OK
+content-length: 5
+
+user2
+```
+
+可以看到能够正确响应。
+
+
+
+>有什么问题吗？没有路由吗？这样去判断path好麻烦，有没有已经造好的轮子，我坐上面颠就好了😄？Vert.x Core中好像是没有的，Web模块有，后面学习吧。
+
+
+
+### 请求Header
+
+handler中的事件（event），其实就是一个`HttpServerRequest`，通过该实例对象，可以获取header信息。
+
+```java
+request.getHeader("header名")
+```
+
+### 获取参数
+
+比如获取/users?id=1中的id参数就可以使用如下代码：
+
+```java
+request.getParam("id")
+```
+
+如果是`body`参数，可以使用bodyHandler处理
+
+```java
+request.bodyHandler(totalBuffer -> {
+  System.out.println("Full body received, length = " + totalBuffer.length());
+});
+```
+
+### 处理HTML表单
+
+```java
+server.requestHandler(request -> {
+  request.setExpectMultipart(true);
+  request.endHandler(v -> {
+    // The body has now been fully read, so retrieve the form attributes
+    MultiMap formAttributes = request.formAttributes();
+  });
+});
+```
+
+### 处理文件上传
+
+```java
+server.requestHandler(request -> {
+  request.setExpectMultipart(true);
+  request.uploadHandler(upload -> {
+    System.out.println("Got a file upload " + upload.name());
+  });
+});
+```
+
+# SharedData API
+
+顾名思义，`共享数据（SharedData）` API允许您在如下组件中安全地共享数据：
+
+- 应用程序的不同部分之间
+- 同一 Vert.x 实例中的不同应用程序之间
+- Vert.x 集群中的不同实例之间
+
+## Local maps
+
+`Local maps` 允许您在同一个 Vert.x 实例中的不同事件循环（如不同的 verticle）之间安全地共享数据。
+
+仅允许将某些数据类型作为键值和值：
+
+* 不可变的类型：比如字符串、布尔类型等。
+* 实现了 `Shareable` 接口的类型 （比如Buffer，JSON数组，JSON对象，或您编写的Shareable实现类）。
+
+```java
+package cn.programtalk.vertx.core;
+
+import io.vertx.core.Vertx;
+import io.vertx.core.shareddata.LocalMap;
+
+public class SharedDataLocalMapsTest {
+    public static void main(String[] args) {
+        Vertx vertx = Vertx.vertx();
+        LocalMap<Integer, Integer> localMap = vertx.sharedData().getLocalMap("map1");
+        localMap.put(1, 1);
+
+        // 这个localMap就能够在一个程序中的其他处获取并使用
+        LocalMap<Integer, Integer> localMap2 = vertx.sharedData().getLocalMap("map1");
+        System.out.println(localMap2.get(1)); // 1
+
+        // 如果再创建一个Vertx实例则无法获取到值
+        Vertx vertx2 = Vertx.vertx();
+        LocalMap<Integer, Integer> localMap3 = vertx2.sharedData().getLocalMap("map1");
+        System.out.println(localMap3.get(1)); // null
+    }
+}
+```
+
+从上面例子的打印结果可以看出，同一个Vertx实例的时候，确实能够正确存取数据，但是不同的Vertx确实不能通过`Local Maps`共享数据。
+
+
+
+存放数据都有对应的同步异步方法。
+
+
+
+## 异步锁
+
+这里的异步锁是一个独占锁。
+
+```java
+package cn.programtalk.vertx.core;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.DeploymentOptions;
+import io.vertx.core.Vertx;
+import io.vertx.core.shareddata.Lock;
+import io.vertx.core.shareddata.SharedData;
+
+public class AsynchronousLockTest extends AbstractVerticle {
+    @Override
+    public void start() throws Exception {
+        super.start();
+        SharedData sharedData = vertx.sharedData();
+        sharedData.getLock("lock1", res -> {
+            if (res.succeeded()) {
+                // 获得锁
+                Lock lock = res.result();
+
+                // 5秒后我们释放该锁以便其他人可以得到它
+                System.out.println(Thread.currentThread().getName() + " 开始执行");
+                vertx.setTimer(1000, tid -> lock.release());
+                System.out.println(Thread.currentThread().getName() + " 执行完毕");
+            } else {
+                // 发生错误
+            }
+        });
+    }
+
+    public static void main(String[] args) {
+        Vertx vertx = Vertx.vertx();
+        vertx.deployVerticle(AsynchronousLockTest.class, new DeploymentOptions().setInstances(3));
+    }
+}
+```
+
+执行结果如下：
+
+![异步锁](https://programtalk-1256529903.cos.ap-beijing.myqcloud.com/202302171545780.png)
+
+可以看到每个`Verticle`都是顺序执行的。
+
+
+
+如果我不使用锁，则执行顺序不能保证，你看如下代码：
+
+```java
+package cn.programtalk.vertx.core;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.DeploymentOptions;
+import io.vertx.core.Vertx;
+import io.vertx.core.shareddata.Lock;
+import io.vertx.core.shareddata.SharedData;
+
+public class AsynchronousLockTest extends AbstractVerticle {
+    @Override
+    public void start() throws Exception {
+        super.start();
+        System.out.println(Thread.currentThread().getName() + " 开始执行");
+        System.out.println(Thread.currentThread().getName() + " 执行完毕");
+    }
+
+    public static void main(String[] args) {
+        Vertx vertx = Vertx.vertx();
+        vertx.deployVerticle(AsynchronousLockTest.class, new DeploymentOptions().setInstances(3));
+    }
+}
+```
+
+效果图如下：
+
+![无锁](https://programtalk-1256529903.cos.ap-beijing.myqcloud.com/202302171547140.png)
+
+
+
+可以为锁设置一个超时时间，若获取锁超时，则会通知处理器获取锁失败：
+
+```java
+SharedData sharedData = vertx.sharedData();
+
+sharedData.getLockWithTimeout("mylock", 10000, res -> {
+  if (res.succeeded()) {
+    // 获得锁
+    Lock lock = res.result();
+
+  } else {
+    // 获取锁失败
+  }
+});
+```
+
+
+
+## 分布式锁
+
+`sharedData.getLock()`就能够实现分布式的效果。
+
+创建两个类（两个Main对应两个JVM），一个叫做`DistributedLockTest`，另一个叫做`DistributedLockTest2`。
+
+**DistributedLockTest**
+
+```java
+package cn.programtalk.vertx.core;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Vertx;
+import io.vertx.core.VertxOptions;
+import io.vertx.core.shareddata.Lock;
+import io.vertx.core.shareddata.SharedData;
+
+public class DistributedLockTest1 extends AbstractVerticle {
+    @Override
+    public void start() throws Exception {
+        super.start();
+        SharedData sharedData = vertx.sharedData();
+        sharedData.getLock("lock1", res -> {
+            if (res.succeeded()) {
+                // 获得锁
+                Lock lock = res.result();
+
+                // 5秒后我们释放该锁以便其他人可以得到它
+                System.out.println(Thread.currentThread().getName() + " 开始执行");
+                vertx.setTimer(100000, tid -> {
+                    lock.release();
+                    System.out.println(Thread.currentThread().getName() + " 执行完毕");
+                });
+
+            } else {
+                // 发生错误
+            }
+        });
+    }
+
+    public static void main(String[] args) {
+        Vertx.clusteredVertx(new VertxOptions(), vertxAsyncResult -> {
+            if (vertxAsyncResult.succeeded()) {
+                Vertx vertx = vertxAsyncResult.result();
+                vertx.deployVerticle(new DistributedLockTest1());
+            } else {
+                System.out.println("Failed: " + vertxAsyncResult.cause());
+            }
+        });
+    }
+}
+
+```
+
+**DistributedLockTest2**
+
+```java
+package cn.programtalk.vertx.core;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Vertx;
+import io.vertx.core.VertxOptions;
+import io.vertx.core.shareddata.Lock;
+import io.vertx.core.shareddata.SharedData;
+
+public class DistributedLockTest2 extends AbstractVerticle {
+    @Override
+    public void start() throws Exception {
+        super.start();
+        SharedData sharedData = vertx.sharedData();
+        sharedData.getLock("lock1", res -> {
+            if (res.succeeded()) {
+                // 获得锁
+                Lock lock = res.result();
+                // 5秒后我们释放该锁以便其他人可以得到它
+                System.out.println(Thread.currentThread().getName() + " 开始执行");
+                System.out.println(Thread.currentThread().getName() + " 执行完毕");
+                lock.release();
+            } else {
+                // 发生错误
+            }
+        });
+    }
+
+    public static void main(String[] args) {
+        Vertx.clusteredVertx(new VertxOptions(), vertxAsyncResult -> {
+            if (vertxAsyncResult.succeeded()) {
+                Vertx vertx = vertxAsyncResult.result();
+                vertx.deployVerticle(new DistributedLockTest2());
+            } else {
+                System.out.println("Failed: " + vertxAsyncResult.cause());
+            }
+        });
+    }
+}
+```
+
+
+
+在`DistributedLockTest1`我设置了很久的延时（为了测试不让其释放锁，我延时了30秒），`DistributedLockTest2`中并没有延时，这样`DistributedLockTest2`中如果获得锁会很快执行完成，现在我先启动`DistributedLockTest1`，再启动`DistributedLockTest2`。
+
+
+
+来看下运行结果，启动`DistributedLockTest1`后，紧接着我再去启动`DistributedLockTest2`（要在`DistributedLockTest1`启动30秒内启动`DistributedLockTest2`，否则不能很好的看到效果）：
+
+`DistributedLockTest1`会打印`开始执行`后一直阻塞着，就像下图一样。
+
+![image-20230217160613497](https://programtalk-1256529903.cos.ap-beijing.myqcloud.com/202302171606700.png)
+
+
+
+在次期间，`DistributedLockTest2`也会一直等待（无法获取锁），30秒之后，`DistributedLockTest1`会打印`执行完毕`，此时`DistributedLockTest2`获取到了锁，也执行成功了。
+
+`DistributedLockTest1`30秒后的效果图：
+
+![DistributedLockTest1-30秒后的效果图](https://programtalk-1256529903.cos.ap-beijing.myqcloud.com/202302171616345.png)
+
+
+
+`DistributedLockTest2`30秒后的效果图：
+
+![DistributedLockTest2-30秒后的效果图](https://programtalk-1256529903.cos.ap-beijing.myqcloud.com/202302171616905.png)
+
+
+
+
+
+> 温馨提示：集群模式下，要添加Clusting模块依赖。
+
+
+
+## 本地锁
+
+上面获取锁的方式都是`sharedData.getLock()`，该方法获得锁可以与其他节点共享锁。如果只想要一个仅限本地的锁，可以使用`getLocalLock`。
+
+```java
+SharedData sharedData = vertx.sharedData();
+
+sharedData.getLocalLock("mylock", res -> {
+  if (res.succeeded()) {
+    // 仅限本地的计数器
+    Lock lock = res.result();
+
+    // 5秒后我们释放该锁以便其他人可以得到它
+
+    vertx.setTimer(5000, tid -> lock.release());
+
+  } else {
+    // 发生错误
+  }
+});
+```
+
+
+
+## 异步计数器
+
+有时你会需要在本地或者在应用节点之间维护一个原子计数器。
+
+您可以用 `Counter` 来做到这一点。
+
+您可以通过 `getCounter` 方法获取一个实例：
+
+```java
+SharedData sharedData = vertx.sharedData();
+
+sharedData.getCounter("mycounter", res -> {
+  if (res.succeeded()) {
+    Counter counter = res.result();
+  } else {
+    // 发生错误
+  }
+});
+```
+
