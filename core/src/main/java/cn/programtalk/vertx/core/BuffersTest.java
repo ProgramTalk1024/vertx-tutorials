@@ -3,8 +3,6 @@ package cn.programtalk.vertx.core;
 import io.netty.buffer.ByteBuf;
 import io.vertx.core.buffer.Buffer;
 
-import java.nio.ByteBuffer;
-
 public class BuffersTest {
     public static void main(String[] args) {
         // 创建Buffer有多种方式
@@ -44,12 +42,33 @@ public class BuffersTest {
 
         // 读取Buffer
         Buffer buff = Buffer.buffer("1234");
-        for (int i = 0; i < buff.length(); i ++) {
-            System.out.println("string value at " + i + " is " + buff.getString(i, i+1));
+        for (int i = 0; i < buff.length(); i++) {
+            System.out.println("string value at " + i + " is " + buff.getString(i, i + 1));
             //string value at 0 is 1
             //string value at 1 is 2
             //string value at 2 is 3
             //string value at 3 is 4
         }
+
+        // Buffer长度
+        Buffer b6 = Buffer.buffer(new byte[]{1, 2, 3});
+        System.out.println(b6.length()); // 3
+        Buffer b7 = Buffer.buffer("学习");
+        System.out.println(b7.length()); // 6，为什么不是2呢？因为在UTF-8编码中，每个汉字占3个字节
+        Buffer b8 = Buffer.buffer("😄");
+        System.out.println(b8.length()); // 4 ，因为😄被一个特殊的Unicode编码标识，四个字节
+
+        // 拷贝Buffer
+        Buffer b9 = Buffer.buffer("123");
+        Buffer b10 = b9.copy();
+        System.out.println(b10); // 123
+
+        // 裁剪
+        Buffer b11 = Buffer.buffer("😄");
+        Buffer b12 = b11.slice();
+        System.out.println(b12 == b11); // false
+        //
+        Buffer slice = b11.slice(0, 2);
+        System.out.println(slice); // �按照字节截取，所以乱码了
     }
 }

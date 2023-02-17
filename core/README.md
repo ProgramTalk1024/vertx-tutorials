@@ -943,12 +943,47 @@ System.out.println(b5.toString().equals("1 3")); // false ,说明中间并不是
 
 可使用 `length` 方法获取Buffer长度， Buffer的长度值是Buffer中包含的字节的最大索引 + 1。
 
+```java
+// Buffer长度
+Buffer b6 = Buffer.buffer(new byte[]{1, 2, 3});
+System.out.println(b6.length()); // 3
+Buffer b7 = Buffer.buffer("学习");
+System.out.println(b7.length()); // 6，为什么不是2呢？因为在UTF-8编码中，每个汉字占3个字节
+Buffer b8 = Buffer.buffer("😄");
+System.out.println(b8.length()); // 4 ，因为😄被一个特殊的Unicode编码标识，四个字节
+```
+
+
+
 ## 拷贝Buffer
 
 可使用 `copy` 方法创建一个Buffer的副本。
+
+```java
+// 拷贝Buffer
+Buffer b9 = Buffer.buffer("123");
+Buffer b10 = b9.copy();
+System.out.println(b10); // 123
+```
+
+
 
 ### 裁剪Buffer
 
 裁剪得到的Buffer是完全依赖于原始Buffer的一个新的Buffer，换句话说，它不会对Buffer中的数据做拷贝。 使用 `slice` 方法裁剪一个Buffer。
 
+```java
+// 裁剪
+Buffer b11 = Buffer.buffer("😄");
+Buffer b12 = b11.slice();
+System.out.println(b12 == b11); // false
+//
+Buffer slice = b11.slice(0, 2);
+System.out.println(slice); // � 按照字节截取，所以乱码了
+```
+
+
+
 # 编写 TCP 服务端和客户端
+
+Vertx实例对象提供了`createNetServer()`方法，可用其创建TCP服务，同时可以使用`NetServerOptions`来设置配置信息，`createNetServer()`方法会返回
